@@ -17,8 +17,21 @@ main () {
       cmd="$cmd"_
     fi
     shift
-    $cmd "$@"
+    if [ "$cmd" = "-h" ]; then
+      cmd=help
+    fi
+    $cmd "$@" || help $(basename $RYP)
   fi
+}
+
+help () {
+  cat <<USAGE
+Usage:
+  $1 deps          - Install dependencies from package.json file. (default)
+  $1 install <pkg> - Install a package, and nest its deps.
+  $1 rm <pkg>      - Remove a package, or all of them if no args.
+  $1 ls            - Show installed packages.
+USAGE
 }
 
 fetch () {
@@ -105,6 +118,7 @@ check_installed () {
 
 deps () {
   local f="$1"
+  ! [ -f package.json ] && help && return 1
   ROOT=$ROOT \
     cat package.json \
     | perl -pi -e 's/\n/ /g' \
