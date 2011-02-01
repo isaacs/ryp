@@ -1,0 +1,76 @@
+#!/bin/bash
+
+set -e
+
+if [ "$DEBUG" != "" ]; then
+  set -x
+fi
+
+RYP="$0"
+ROOT=${ROOT:-"$PWD"}
+
+main () {
+  if [ $# -eq 0 ]; then
+    deps
+  else
+    local cmd=$1
+    shift
+    $cmd "$@"
+  fi
+}
+
+fetch () {
+  local url=$1
+  case $url in
+    *.tgz)
+      curl -# $url
+      ;;
+    *)
+      curl -s $url
+      ;;
+  esac
+}
+
+install () {
+  local pkg=$1
+  shift
+  local f=$1
+  local p="${PWD/$ROOT/.}"
+  if [ "$f" != "" ]; then
+    echo "$pkg $p/node_modules/$pkg (for $f)"
+  else
+    echo "$pkg $p/node_modules/$pkg"
+  fi
+  rm -rf ./node_modules/.tmp
+  rm -rf ./node_modules/$pkg
+  mkdir -p ./node_modules/.tmp
+  ROOT=$ROOT \
+    $RYP fetch http://registry.npmjs.org/$pkg/latest \
+    | egrep -o 'tarball":"[^"]*' \
+    | egrep -o 'http:.*' \
+    | xargs $RYP fetch \
+    | (cd ./node_modules/.tmp ; tar -zxf -)
+  mv ./node_modules/.tmp/* ./node_modules/$pkg
+  curl -s http://registry.npmjs.org/$pkg/latest \
+    > ./node_modules/$pkg/package.json
+  rm -rf ./node_modules/.tmp
+  if [ -f ./node_modules/$pkg/wscript ]; then
+    ( cd ./node_modules/$pkg ; node-waf configure build )
+  fi
+  ( cd ./node_modules/$pkg
+    deps "$pkg" )
+}
+
+deps () {
+  local f="$1"
+  ROOT=$ROOT \
+    cat package.json \
+    | perl -pi -e 's/\n/ /g' \
+    | egrep -o '"dependencies" *: *\{[^\}]+' \
+    | perl -pi -e 's/,/\n/g' \
+    | egrep -o '"[^"]+" *: *"' \
+    | awk -F'"' '{print $2}' \
+    | ROOT=$ROOT xargs -IPKG $RYP install PKG "$f"
+}
+
+main "$@"

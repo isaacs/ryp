@@ -1,0 +1,12 @@
+A really super scaled down featureless node package manager.
+
+Named after Ryan Dahl, because he complained enough to make this happen,
+and in my attempt to shut him up, I accidentally built something neat
+and decided that I kinda liked it.
+
+Put this script somewhere.  Then run `ryp` in your package folder.
+
+What results doesn't work yet, and doesn't handle all the different edge
+cases that npm will, but it does the 90% use case pretty ok.
+
+It requires perl and bash and curl and a bunch of other shell scripting tools.
