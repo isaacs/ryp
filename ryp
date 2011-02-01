@@ -1,7 +1,6 @@
 #!/bin/bash
 
 set -e
-
 if [ "$DEBUG" != "" ]; then
   set -x
 fi
@@ -14,6 +13,9 @@ main () {
     deps
   else
     local cmd=$1
+    if [ "$cmd" = "rm" ] || [ "$cmd" = "ls" ]; then
+      cmd="$cmd"_
+    fi
     shift
     $cmd "$@"
   fi
@@ -31,34 +33,74 @@ fetch () {
   esac
 }
 
+rm_ () {
+  local pkg="$1"
+  rm -rf "./node_modules/$pkg"
+}
+
+ls_ () {
+  [ -d ./node_modules ] || return 1
+  local pref=${1:-.}
+  for i in node_modules/*; do
+    if [ "$i" = "node_modules/*" ]; then
+      return 0
+    fi
+    echo $pref/$i
+    ( cd "$i" &>/dev/null ; ls_ $pref/$i ) || true
+  done
+}
+
 install () {
-  local pkg=$1
+  local pkg="$1"
   shift
-  local f=$1
+  local f="$1"
   local p="${PWD/$ROOT/.}"
+  rm -rf ./node_modules/.tmp
+  rm -rf "./node_modules/$pkg"
+  # check if it's already installed in any node_modules folder
+  # between ROOT and PWD
+  check_installed "$ROOT" "$PWD" "$pkg" || return 0
   if [ "$f" != "" ]; then
     echo "$pkg $p/node_modules/$pkg (for $f)"
   else
     echo "$pkg $p/node_modules/$pkg"
   fi
-  rm -rf ./node_modules/.tmp
-  rm -rf ./node_modules/$pkg
   mkdir -p ./node_modules/.tmp
   ROOT=$ROOT \
     $RYP fetch http://registry.npmjs.org/$pkg/latest \
     | egrep -o 'tarball":"[^"]*' \
     | egrep -o 'http:.*' \
     | xargs $RYP fetch \
-    | (cd ./node_modules/.tmp ; tar -zxf -)
+    | (cd ./node_modules/.tmp &>/dev/null ; tar -zxf -)
   mv ./node_modules/.tmp/* ./node_modules/$pkg
   curl -s http://registry.npmjs.org/$pkg/latest \
     > ./node_modules/$pkg/package.json
   rm -rf ./node_modules/.tmp
   if [ -f ./node_modules/$pkg/wscript ]; then
-    ( cd ./node_modules/$pkg ; node-waf configure build )
+    ( cd ./node_modules/$pkg &>/dev/null; node-waf configure build )
   fi
-  ( cd ./node_modules/$pkg
+  ( cd ./node_modules/$pkg &>/dev/null
     deps "$pkg" )
+}
+
+check_installed () {
+  local root="$1"
+  local cwd="$2"
+  local pkg="$3"
+  if [ ${#root} -ge ${#cwd} ]; then
+    return 0
+  fi
+  if [ -d "$root/node_modules/$pkg" ]; then
+    root="${root/$ROOT/.}"
+    echo "$pkg installed: $root/node_modules/$pkg" >&2
+    return 1
+  fi
+  for i in "$root"/node_modules/*; do
+    if [ "$i" == "$root/node_modules/*" ]; then
+      return 0
+    fi
+    check_installed "$i" "$cwd" "$pkg"
+  done
 }
 
 deps () {
