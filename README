@@ -1,4 +1,5 @@
-A really super scaled down featureless node package manager.
+A really super scaled down featureless node package manager for node 0.4
+and higher.
 
 Named after Ryan Dahl, because he complained enough to make this happen,
 and in my attempt to shut him up, I accidentally built something neat
@@ -10,5 +11,3 @@ What results doesn't work yet, and doesn't handle all the different edge
 cases that npm will, but it does the 90% use case pretty ok.
 
 It requires perl and bash and curl and a bunch of other shell scripting tools.
-
-(Note: This won't actually work until node 0.5.x)
