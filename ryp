@@ -59,7 +59,7 @@ ls_ () {
       return 0
     fi
     echo $pref/$i
-    ( cd "$i" &>/dev/null ; ls_ $pref/$i ) || true
+    [ -d $i ] && ( cd "$i" &>/dev/null ; ls_ $pref/$i ) || true
   done
 }
 
